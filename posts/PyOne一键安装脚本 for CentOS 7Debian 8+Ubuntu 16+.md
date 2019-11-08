@@ -1,0 +1,121 @@
+# PyOne一键安装脚本 for CentOS 7/Debian 8+/Ubuntu 16+
+
+**说明：**`PyOne`最近凭着离线下载(完成并自动上传至`Onedrive`)和绑定多网盘的功能被越来越多的人使用，如果你还不知道`PyOne`是何物的可以查看该教程→[点击查看](https://www.moerats.com/archives/734/)。作者更新也勤奋，所以得支持一下，之前博主发过基于宝塔的手动安装教程和`Docker`安装教程，查看：[手动安装](https://www.moerats.com/archives/734/)、[Docker安装](https://www.moerats.com/archives/799/)。不过由于宝塔的`Mongodb`很容易出错，有些小白也不会解决，而`Docker`也不支持`OpenVZ`，所以博主写了个一键脚本，这里分享下。
+
+## 脚本说明
+
+```
+#脚本会一键安装PyOne所需要的Mongodb、Redis、Aria2等环境，域名使用Caddy反代，自动配置SSL证书。
+
+#本脚本使用的Aria2为某大佬编译的多线程版本，其特点可以将下载速度最大化优化，博主已配置完毕，如服务器性能不足，可将线程自行调整。
+方法：修改配置文件/root/.aria2/aria2.conf，线程参数split=64，请自行调整。
+
+#Aria2已添加了BT-Trackers服务器，并定时自动更新服务器地址。
+
+#脚本使用systemctl替换了程序所使用的supervisord进程守护，所以程序的重启等命令会和官方文档上的不一样，详细的使用命令可以看文章后面。
+
+#选择域名访问的，需要提前让解析生效，不然脚本会自动断开，因为后面需要签发SSL证书，ip必须为服务器ip。
+```
+
+## 更新
+
+```
+【2019.9.28】
+新增Debian 10，升级MongoDB版本到4.0，有问题可以留言。
+【2019.6.27】
+修复部分CentOS 7安装出错的问题，并新增Ubuntu系统，已在Vultr的Ubuntu 16.04、18.04、18.10、19.04上测试通过
+【2019.2.23】
+鉴于有人需要3.0版本，现已增加安装3.0版本选项，多个选择，并使用的3.0最后一个版本。
+【2019.2.16】
+修改脚本部分安装步骤，使其支持PyOne4.0
+【2019.1.31】
+修复部分系统安装启动pyone失败的问题
+【2018.11.30】
+修复PyOne刷新不出文件夹/文件的问题。
+```
+
+## 安装
+
+**系统要求：**`CentOS 7`、`Debian 8+`、`Ubuntu 16+`，建议`Debian 9`，且为刚安装好的系统，尽量不要用精简版系统。
+
+使用命令：
+
+```
+wget -N --no-check-certificate https://www.moerats.com/usr/shell/PyOne/PyOne.sh
+bash PyOne.sh
+```
+
+根据需求选择是否使用域名访问，然后输入域名和`Aria2`密匙即可。
+[![请输入图片描述](https://www.moerats.com/usr/picture/PyOne_shell.png)](https://www.moerats.com/usr/picture/PyOne_shell.png)
+
+安装完成后，如果打不开网站的，可以使用命令一起查看下各程序状态。
+
+```
+#使用域名访问的
+systemctl status aria2 mongod redis-server pyone caddy
+#使用IP访问的
+systemctl status aria2 mongod redis-server pyone
+```
+
+如果有显示`Active:inactive`的，可以留言说下具体程序和系统。反之如果都为`running`，可以检查下防火墙端口，比如阿里云，谷歌云等，还需要在服务器管理面板上开放`34567`端口才行。
+
+## 相关命令
+
+```
+#以下程序均已配置开机自启，所以就不说开机自启命令了。
+
+#Redis使用命令
+启动：systemctl start redis-server
+重启：systemctl restart redis-server
+停止：systemctl stop redis-server
+状态：systemctl status redis-server
+
+#Mongodb使用命令
+启动：systemctl start mongod
+重启：systemctl restart mongod
+停止：systemctl stop mongod
+状态：systemctl status mongod
+
+#Aria2使用命令
+启动：systemctl start aria2
+重启：systemctl restart aria2
+停止：systemctl stop aria2
+状态：systemctl status aria2
+
+#Caddy使用命令(使用域名的才会安装Caddy)
+启动：systemctl start caddy
+重启：systemctl restart caddy
+停止：systemctl stop caddy
+状态：systemctl status caddy
+
+#PyOne使用命令
+启动：systemctl start pyone
+重启：systemctl restart pyone
+停止：systemctl stop pyone
+状态：systemctl status pyone
+```
+
+## 相关目录
+
+```
+PyOne程序目录：/root/PyOne
+Caddy配置文件目录：/root/.caddy
+Aria2配置文件目录：/root/.aria2
+```
+
+## 相关说明
+
+```
+#关于操作说明
+由于更换了原程序进程守护，所以网站右上角的重启网站按钮已失效，请在SSH客户端使用systemctl restart pyone命令重启程序。
+
+#关于离线下载
+Aria2配置文件的下载路径为/root/Download，但该程序自带的离线下载不调用配置文件，所以使用本程序离线下载的目录为/root/PyOne/upload。
+
+由于本程序离线下载不调用配置文件，所以Aria2多线程可能会发挥不出来，BT服务器也无效，不过会玩的，可以通过修改根目录的aria2.py文件某些参数达到目的，或者直接研究该教程：https://www.moerats.com/archives/697/，使用Aria2面板来离线下载更好，毕竟后者用的脚本比自带离线下载更稳定。
+
+#刷新缓存问题
+如果你在后台执行缓存刷新操作，可能短时间不会生效，建议直接在SSH客户端使用python /root/PyOne/function.py UpdateFile命令刷新
+```
+
+最后更多的使用方法(包括程序更新)可以查看该教程→[点击查看](https://www.moerats.com/archives/734/)，除了`PyOne`启动命令不一样以外，其它都一样，包括上传等命令。
